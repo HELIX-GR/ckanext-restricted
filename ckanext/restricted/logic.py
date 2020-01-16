@@ -35,7 +35,6 @@ def restricted_get_username_from_context(context):
 
 def restricted_get_restricted_dict(resource_dict):
     restricted_dict = {'level': 'public', 'allowed_users': []}
-
     # the ckan plugins ckanext-scheming and ckanext-composite
     # change the structure of the resource dict and the nature of how
     # to access our restricted field values
@@ -52,25 +51,25 @@ def restricted_get_restricted_dict(resource_dict):
                 restricted = json.loads(restricted)
             except ValueError:
                 restricted = {}
-
         if restricted:
-            restricted_level = restricted.get('level', 'public')
-            allowed_users = restricted.get('allowed_users', '')
+            #restricted_level = restricted.get('level', 'public')
+            #allowed_users = restricted.get('allowed_users', '')
+            restricted_level = 'only_allowed_users'
+            # get allowed users from new field 'allowed users' instead of nested restricted field
+            allowed_users = resource_dict.get('allowed_users', '')
             if not isinstance(allowed_users, list):
                 allowed_users = allowed_users.split(',')
             restricted_dict = {
                 'level': restricted_level,
                 'allowed_users': allowed_users}
-
     return restricted_dict
 
 
 def restricted_check_user_resource_access(user, resource_dict, package_dict):
     restricted_dict = restricted_get_restricted_dict(resource_dict)
-
     restricted_level = restricted_dict.get('level', 'public')
     allowed_users = restricted_dict.get('allowed_users', [])
-
+    
     # Public resources (DEFAULT)
     if not restricted_level or restricted_level == 'public':
         return {'success': True}
@@ -181,9 +180,9 @@ def restricted_notify_allowed_users(previous_value, updated_resource):
 
     previous_restricted = _safe_json_loads(previous_value)
     updated_restricted = _safe_json_loads(updated_resource.get('restricted', ''))
-
     # compare restricted users_allowed values
-    updated_allowed_users = set(updated_restricted.get('allowed_users', '').split(','))
+    #updated_allowed_users = set(updated_restricted.get('allowed_users', '').split(','))
+    updated_allowed_users = _safe_json_loads(updated_resource.get('allowed_users', ''))
     if updated_allowed_users:
         previous_allowed_users = previous_restricted.get('allowed_users', '').split(',')
         for user_id in updated_allowed_users:

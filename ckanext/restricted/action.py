@@ -89,7 +89,6 @@ def restricted_resource_view_list(context, data_dict):
 
 @side_effect_free
 def restricted_package_show(context, data_dict):
-
     package_metadata = package_show(context, data_dict)
 
     # Ensure user who can edit can see the resource
@@ -204,12 +203,16 @@ def _restricted_resource_list_hide_fields(context, resource_list):
 
             # hide partially other allowed user_names (keep own)
             allowed_users = []
-            for user in restricted_dict.get('allowed_users'):
+            # convert to list if only 1 string
+            list_allowed_users = restricted_dict.get('allowed_users')
+            for user in list_allowed_users:
                 if len(user.strip()) > 0:
                     if user_name == user:
                         allowed_users.append(user_name)
                     else:
                         allowed_users.append(user[0:3] + '*****' + user[-2:])
+            # hide usernames from custom allowed users field            
+            restricted_resource['allowed_users'] = allowed_users
 
             new_restricted = json.dumps({
                 'level': restricted_dict.get("level"),

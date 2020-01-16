@@ -70,20 +70,20 @@ class RestrictedController(toolkit.BaseController):
                 'resource_name': data.get('resource_name', ''),
                 'resource_link': config.get('ckan.site_url') + resource_link,
                 'resource_edit_link': config.get('ckan.site_url') + resource_edit_link,
-                'package_name': data.get('resource_name', ''),
+                'package_name': data.get('pkg_dict').get('title', ''),
                 'message': data.get('message', ''),
                 'admin_email_to': config.get('email_to', 'email_to_undefined')}
 
             body = render_jinja2('restricted/emails/restricted_access_request.txt', extra_vars)
             subject = \
-                _('Access Request to resource {0} ({1}) from {2}').format(
+                _('Αίτημα πρόσβασης στο {0}  από τον χρήστη {1}').format(
                     data.get('resource_name', ''),
-                    data.get('package_name', ''),
                     data.get('user_name', ''))
 
             email_dict = {
                 data.get('maintainer_email'): extra_vars.get('maintainer_name'),
-                extra_vars.get('admin_email_to'): '{} Admin'.format(extra_vars.get('site_title'))}
+                #extra_vars.get('admin_email_to'): '{} Admin'.format(extra_vars.get('site_title'))
+                }
 
             headers = {
                 'CC': ",".join(email_dict.keys()),
@@ -259,6 +259,7 @@ class RestrictedController(toolkit.BaseController):
             except Exception:
                 pass
         # CKAN instance Admin
+        contact_email = pkg_dict.get('datacite.contact_email')
         if not contact_email:
             contact_email = config.get('email_to', 'email_to_undefined')
             contact_name = 'CKAN Admin'
