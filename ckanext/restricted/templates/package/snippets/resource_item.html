@@ -11,7 +11,7 @@
     {{ super() }}
   {% else %}
   <span class="restricted-item">
-    <a class="heading restricted-item" disabled="true" href="#" title="{{ res.name or res.description }}">{{ h.resource_display_name(res) | truncate(35) }} {{ _('Unauthorized') }} <span class="format-label" property="dc:format" data-format="{{ res.format.lower() or 'data' }}">{{ res.format }}</span>{{ h.popular('views', res.tracking_summary.total, min=10) }}</a></span>
+    <a class="heading restricted-item" disabled="true" href="#" title="{{ res.name or res.description }}">{{ h.resource_display_name(res) | truncate(35) }} ({{ _('Unauthorized') }}) <span class="format-label" property="dc:format" data-format="{{ res.format.lower() or 'data' }}">{{ res.format }}</span>{{ h.popular('views', res.tracking_summary.total, min=10) }}</a></span>
   {% endif %}
 {% endblock %}
 
@@ -20,8 +20,8 @@
     {{ super() }}
   {% else %}
     {% if user_id %}
-  <div class="dropdown btn-group">
-    <a href="{{ h.url_for('restricted_request_access', package_id=pkg.name, resource_id=res.id) }}" class="btn"><i class="fa fa-icon fa-unlock-alt" style="margin-right: 5px;"></i>{{ _('Request Access')}}</a>
+  <div class="dropdown btn-group request-access">
+    <a href="{{ h.url_for('restricted_request_access', package_id=pkg.name, resource_id=res.id) }}" class="btn btn-manage"><i class="fa fa-icon fa-unlock-alt" style="margin-right: 5px;"></i>{{ _('Request Access')}}</a>
   </div>
     {% else %}
   <div class="dropdown btn-group restricted-link">

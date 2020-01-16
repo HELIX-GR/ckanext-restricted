@@ -1,20 +1,20 @@
-{% trans %}Dear{% endtrans %} {{ maintainer_name }},
+{% trans %}Χαίρετε{% endtrans %},
 
-{% trans %}A user has requested access to your data in {{ site_title }}:{% endtrans %}
-* {% trans %}Resource:{% endtrans %} {{ resource_name }} ({{ resource_link }})
-* {% trans %}Dataset:{% endtrans %} {{ package_name }}
-* {% trans %}User:{% endtrans %} {{ user_name }} ({{ user_email }})
-* {% trans %}Message:{% endtrans %} {{ message }}
+{% trans %}Ένας χρήστης ζήτησε πρόσβαση στα δεδομένα σας στο {{ site_title }}:{% endtrans %}
+* {% trans %}Πόρος:{% endtrans %} {{ resource_name }} ({{ resource_link }})
+* {% trans %}Σύνολο δεδομένων:{% endtrans %} {{ package_name }}
+* {% trans %}Χρήστης:{% endtrans %} {{ user_name }} ({{ user_email }})
+* {% trans %}Μήνυμα:{% endtrans %} {{ message }}
 
-{% trans %}You can allow this user to access you resource by adding {{ user_id }} to the list of allowed users.{% endtrans %}
-{% trans %}If you have editor rights, you can edit the resource in this link: {{ resource_edit_link }}.{% endtrans %}
-{% trans %}If you have any questions about how to proceed with this request, please contact the {{ site_title }} support at {{ admin_email_to }}.{% endtrans %}
+{% trans %}Μπορείτε να επιτρέψετε στον χρήστη να έχει πρόσβαση στα δεδομένα σας προσθέτοντάς τον ({{ user_id }}) στη λίστα των επιτρεπόμενων χρηστών.{% endtrans %}
+{% trans %}Αν έχετε δεδομένα συντάκτη μπορείτε να επεξεργαστείτε τον πόρο στον σύνδεσμο: {{ resource_edit_link }}.{% endtrans %}
+{% trans %}Αν έχετε άλλες ερωτήσεις για το αίτημα, παρακαλώ επικοινωνηστε με το τμήμα υποστήριξης {{ site_title }} στο {{ admin_email_to }}.{% endtrans %}
 
-{% trans %}Best regards,{% endtrans %}
-{% trans %}{{ site_title }} Administrator{% endtrans %}
+{% trans %}Με εκτίμηση,{% endtrans %}
+{% trans %}Διαχειριστής {{ site_title }}{% endtrans %}
 
 
-{% trans %}This is an automatically generated e-mail, please do not reply to it.{% endtrans %}
+{% trans %}Αυτο είναι ένα αυτοματοποιημένο email, μην απαντήσετε σε αυτή τη διεύθυνση.{% endtrans %}
 
-{% trans %}Message sent from {{ site_title }} ({{ site_url }}){% endtrans %}
+{% trans %}Το μήνυμα στάλθηκε από το {{ site_title }} ({{ site_url }}){% endtrans %}
 
