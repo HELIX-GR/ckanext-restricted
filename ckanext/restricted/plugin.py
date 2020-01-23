@@ -34,7 +34,9 @@ class RestrictedPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
     # IActions
     def get_actions(self):
-        return {'user_create': action.restricted_user_create_and_notify,
+        return {
+                # no need for overriding user create
+                #'user_create': action.restricted_user_create_and_notify,
                 'resource_view_list': action.restricted_resource_view_list,
                 'package_show': action.restricted_package_show,
                 'resource_search': action.restricted_resource_search,
