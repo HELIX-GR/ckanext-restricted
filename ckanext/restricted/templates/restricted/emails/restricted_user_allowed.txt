@@ -1,15 +1,13 @@
-{% trans %}Dear{% endtrans %} {{ user_name }},
+{% trans %}Γειά σας{% endtrans %},
 
-{% trans %}You have requested access on {{ site_title }} to the resource: {{ resource_name }}.{% endtrans %}
-{% trans %}The contact person of the package has granted you access.{% endtrans %}
+{% trans %}Έχετε ζητήσει πρόσβαση στο {{ site_title }} για τον πόρο: {{ resource_name }}.{% endtrans %}
+{% trans %}Ο υπεύθυνος του συνόλου δεδομένων σας έδωσε πρόσβαση.{% endtrans %}
 
-{% trans %}Please click the following link: {{ resource_link }}{% endtrans %}
+{% trans %}Παρακαλώ ακολουθήστε τον παρακάτω σύνδεσμο για να κατεβάσετε το αρχείο: {{ resource_link }}{% endtrans %}
 
-{% trans %}Best regards,{% endtrans %}
-{% trans %}{{ site_title }} Administrator{% endtrans %}
+{% trans %}Με εκτίμηση,{% endtrans %}
+{% trans %}Διαχειριστής {{ site_title }}{% endtrans %}
 
+{% trans %}Αυτο είναι ένα αυτοματοποιημένο email, μην απαντήσετε σε αυτή τη διεύθυνση.{% endtrans %}
 
-{% trans %}This is an automatically generated e-mail, please do not reply to it.{% endtrans %}
-
-{% trans %}Message sent from {{ site_title }} ({{ site_url }}){% endtrans %}
-
+{% trans %}Το μήνυμα στάλθηκε από το {{ site_title }} ({{ site_url }}){% endtrans %}

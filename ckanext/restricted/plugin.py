@@ -9,6 +9,7 @@ from ckanext.restricted import action
 from ckanext.restricted import auth
 from ckanext.restricted import helpers
 from ckanext.restricted import logic
+import ckanext.restricted.model as ext_model
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -20,12 +21,18 @@ _get_or_bust = ckan.logic.get_or_bust
 class RestrictedPlugin(plugins.SingletonPlugin, DefaultTranslation):
     plugins.implements(plugins.ITranslation)
     plugins.implements(plugins.IConfigurer)
+    plugins.implements(plugins.IConfigurable)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IAuthFunctions)
     plugins.implements(plugins.IRoutes, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
 
+    # IConfigurable
+
+    def configure(self, config):
+        # Setup database table(s)
+        ext_model.setup()
     # IConfigurer
     def update_config(self, config_):
         toolkit.add_template_directory(config_, 'templates')
@@ -41,11 +48,16 @@ class RestrictedPlugin(plugins.SingletonPlugin, DefaultTranslation):
                 'package_show': action.restricted_package_show,
                 'resource_search': action.restricted_resource_search,
                 'package_search': action.restricted_package_search,
-                'restricted_check_access': action.restricted_check_access }
+                'restricted_check_access': action.restricted_check_access,
+                'restricted_accept_request': action.restricted_accept_request,
+                'restricted_reject_request': action.restricted_reject_request,
+                'request_resource': action.request_resource }
 
     # ITemplateHelpers
     def get_helpers(self):
-        return {'restricted_get_user_id': helpers.restricted_get_user_id}
+        return {'restricted_get_user_id': helpers.restricted_get_user_id,
+                'get_restricted_requests': helpers.get_restricted_requests
+                }
 
     # IAuthFunctions
     def get_auth_functions(self):
@@ -63,7 +75,7 @@ class RestrictedPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
     # IResourceController
     def before_update(self, context, current, resource):
-        context['__restricted_previous_value'] = current.get('restricted')
+        context['__restricted_previous_value'] = current.get('allowed_users',[])
 
     def after_update(self, context, resource):
         previous_value = context.get('__restricted_previous_value')

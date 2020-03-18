@@ -13,6 +13,8 @@ import ckan.logic as logic
 import ckan.model as model
 import ckan.plugins.toolkit as toolkit
 
+import ckanext.restricted.logic as ext_logic
+
 try:
     # CKAN 2.7 and later
     from ckan.common import config
@@ -21,6 +23,7 @@ except ImportError:
     from pylons import config
 
 import simplejson as json
+import time
 
 from logging import getLogger
 log = getLogger(__name__)
@@ -115,6 +118,11 @@ class RestrictedController(toolkit.BaseController):
             log.error('Can not access request mail after registration.')
             log.error(mailer_exception)
 
+        # save request to the database
+        request_dict = {'resource_id':data.get('resource_id'), 'message':data.get('message'),
+                     'owner_id':data.get('pkg_dict').get('creator_user_id'), 'user_id':data.get('user_name')}
+        ext_logic.save_restricted_request(request_dict)
+
         return success
 
     def _send_request(self, context):
@@ -201,6 +209,7 @@ class RestrictedController(toolkit.BaseController):
 
                 pkg = toolkit.get_action('package_show')(context, {'id': package_id})
                 data['package_name'] = pkg.get('name')
+                data['package_title'] = pkg.get('title')
                 resources = pkg.get('resources', [])
                 for resource in resources:
                     if resource['id'] == resource_id:
@@ -259,6 +268,7 @@ class RestrictedController(toolkit.BaseController):
             except Exception:
                 pass
         # CKAN instance Admin
+        # get contact_email from custom datacite field
         contact_email = pkg_dict.get('datacite.contact_email')
         if not contact_email:
             contact_email = config.get('email_to', 'email_to_undefined')

@@ -2,13 +2,15 @@
 
 from __future__ import unicode_literals
 import ckan.authz as authz
-from ckan.common import _
+from ckan.common import _, c
 
 from ckan.lib.base import render_jinja2
 import ckan.lib.mailer as mailer
 import ckan.logic as logic
 import ckan.plugins.toolkit as toolkit
 import json
+import ckan.model as model
+import ckanext.restricted.model as ext_model
 
 try:
     # CKAN 2.7 and later
@@ -138,31 +140,35 @@ def restricted_mail_allowed_user(user_id, resource):
 
         # maybe check user[activity_streams_email_notifications]==True
 
-        mail_body = restricted_allowed_user_mail_body(user, resource)
-        mail_subject = _('Access granted to resource {}').format(resource_name)
+        mail_body = restricted_allowed_user_mail_body(resource, user)
+        mail_subject = _('Αποδοχή αιτήματος πρόσβασης στον πόρο {}').format(resource_name)
 
         # Send mail to user
         mailer.mail_recipient(user_name, user_email, mail_subject, mail_body)
 
-        # Send copy to admin
-        mailer.mail_recipient(
-            'CKAN Admin', config.get('email_to'),
-            'Fwd: {}'.format(mail_subject), mail_body)
+        # Send copy to admin (temporarily disabled)
+        #mailer.mail_recipient(
+        #    'CKAN Admin', config.get('email_to'),
+        #    'Fwd: {}'.format(mail_subject), mail_body)
 
     except Exception as e:
         log.warning(('restricted_mail_allowed_user: '
                      'Failed to send mail to "{0}": {1}').format(user_id,e))
 
 
-def restricted_allowed_user_mail_body(user, resource):
-    resource_link = toolkit.url_for(
-        controller='package', action='resource_read',
-        id=resource.get('package_id'), resource_id=resource.get('id'))
-
+def restricted_allowed_user_mail_body(resource, user=None, download_id = None):
+    if user:
+        resource_link = toolkit.url_for(
+            controller='package', action='resource_read',
+            id=resource.get('package_id'), resource_id=resource.get('id'))
+        user_name = user.get('display_name', user['name'])
+    else:
+        resource_link = '/helix/files/restricted_resources/' + download_id + '/download/'
+        user_name = 'user'
     extra_vars = {
         'site_title': config.get('ckan.site_title'),
         'site_url': config.get('ckan.site_url'),
-        'user_name': user.get('display_name', user['name']),
+        'user_name': user_name,
         'resource_name': resource.get('name', resource['id']),
         'resource_link': config.get('ckan.site_url') + resource_link,
         'resource_url': resource.get('url')}
@@ -171,7 +177,7 @@ def restricted_allowed_user_mail_body(user, resource):
         'restricted/emails/restricted_user_allowed.txt', extra_vars)
 
 def restricted_notify_allowed_users(previous_value, updated_resource):
-
+    
     def _safe_json_loads(json_string, default={}):
         try:
             return json.loads(json_string)
@@ -182,9 +188,71 @@ def restricted_notify_allowed_users(previous_value, updated_resource):
     updated_restricted = _safe_json_loads(updated_resource.get('restricted', ''))
     # compare restricted users_allowed values
     #updated_allowed_users = set(updated_restricted.get('allowed_users', '').split(','))
-    updated_allowed_users = _safe_json_loads(updated_resource.get('allowed_users', ''))
-    if updated_allowed_users:
-        previous_allowed_users = previous_restricted.get('allowed_users', '').split(',')
-        for user_id in updated_allowed_users:
-            if user_id not in previous_allowed_users:
-                restricted_mail_allowed_user(user_id, updated_resource)
+    updated_allowed_users = updated_resource.get('allowed_users', '')
+
+    if updated_allowed_users:  
+        # convert to list
+        if not isinstance(previous_value, list):
+            previous_value = previous_value.split(',')
+        if not isinstance(updated_allowed_users, list):
+            updated_allowed_users = updated_allowed_users.split(',')
+            previous_allowed_users = previous_value
+            #previous_allowed_users = previous_restricted.get('allowed_users', '').split(',')
+            for user_id in updated_allowed_users:
+                if user_id not in previous_allowed_users:
+                    restricted_mail_allowed_user(user_id, updated_resource)
+
+
+def get_restricted_requests(owner_id, category):
+    result = []
+    context = {'model': model, 'session': model.Session, 'user': c.user}
+    download_id = ext_model.RestrictedRequest.download_id
+    if category == 'registered':
+        requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
+            owner_id=owner_id, request_email=None, download_id=None)
+    elif category == 'unregistered':
+        requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
+            owner_id=owner_id, user_id=None, download_id=None)
+    elif category == 'accepted':
+        requests = model.Session.query(
+            ext_model.RestrictedRequest).filter_by(owner_id=owner_id,rejected_at=None).filter(download_id!=None)
+    for request in requests:
+        resource = logic.get_action('resource_show')(
+            context, {'id': request.resource_id})
+        result.append({
+            'resource_name': resource['name'],
+            'resource_id': resource['id'],
+            'package_id': resource['package_id'],
+            'request_id': request.request_id,
+            'user_id': request.user_id,
+            'download_id': request.download_id,
+            'message': request.message,
+            'request_email': request.request_email,
+            'state': 'true' if request.download_id else 'false'
+        })
+    return result
+
+def save_restricted_request(request_dict):
+    # Add record
+    request = ext_model.RestrictedRequest()
+    model.Session.add(request)
+    
+    request.resource_id = request_dict.get('resource_id')
+    request.owner_id = request_dict.get('owner_id')
+    request.message = request_dict.get('message')
+    request.user_id = request_dict.get('user_id')
+    request.request_email = request_dict.get('request_email')
+    #request.submitted_at = request_dict.get('submitted_at')
+    model.Session.commit()
+
+
+def update_restricted_request(request_dict):
+    request = model.Session.query(ext_model.RestrictedRequest).filter_by(
+        request_id=str(request_dict.get('request_id'))).one_or_none()
+    if request:
+        # Update record
+        request.download_id = request_dict.get('download_id', request.download_id )
+        request.accepted_at = request_dict.get('accepted_at', request.accepted_at)
+        request.rejected_at = request_dict.get('rejected_at', request.rejected_at)
+    model.Session.commit()
+    

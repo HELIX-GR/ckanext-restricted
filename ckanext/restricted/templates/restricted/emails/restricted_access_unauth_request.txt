@@ -1,0 +1,17 @@
+{% trans %}Ένας χρήστης ζήτησε πρόσβαση στα δεδομένα σας στο {{ site_title }}:{% endtrans %}
+* {% trans %}Πόρος:{{ resource_name }} ({{ resource_link }}){% endtrans %}
+* {% trans %}Σύνολο δεδομένων:{{ package_name }}{% endtrans %}
+* {% trans %}Χρήστης:({{ user_email }}){% endtrans %}
+* {% trans %}Μήνυμα:({{ message }}){% endtrans %}
+
+{% trans %}Μπορείτε να διαχειριστείτε τα αιτήματα πρόσβασης στον πίνακα λειτουργιών σας: {{dashboard_restricted}}, και να αποδεχτείτε ή να τα απορρίψετε. {% endtrans %}
+{% trans %}Αν έχετε άλλες ερωτήσεις για το αίτημα, παρακαλώ επικοινωνηστε με το τμήμα υποστήριξης {{ site_title }} στο {{ admin_email_to }}.{% endtrans %}
+
+{% trans %}Με εκτίμηση,{% endtrans %}
+{% trans %}Διαχειριστής {{ site_title }}{% endtrans %}
+
+
+{% trans %}Αυτο είναι ένα αυτοματοποιημένο email, μην απαντήσετε σε αυτή τη διεύθυνση.{% endtrans %}
+
+{% trans %}Το μήνυμα στάλθηκε από το {{ site_title }} ({{ site_url }}){% endtrans %}
+
