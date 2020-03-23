@@ -232,7 +232,7 @@ class RestrictedController(toolkit.BaseController):
                 if user_id:
                     user = toolkit.get_action('user_show')(context, {'id': user_id})
                     data['user_id'] = user_id
-                    data['user_name'] = user.get('display_name', user_id)
+                    data['user_name'] = user.get('name', user_id)
                     data['user_email'] = user.get('email', '')
 
                 resource_name = ''

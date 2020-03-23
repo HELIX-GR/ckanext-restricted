@@ -135,7 +135,7 @@ def restricted_mail_allowed_user(user_id, resource):
         context['keep_email'] = True
         user = toolkit.get_action('user_show')(context, {'id': user_id})
         user_email = user['email']
-        user_name = user.get('display_name', user['name'])
+        user_name = user.get('name', user['name'])
         resource_name = resource.get('name', resource['id'])
 
         # maybe check user[activity_streams_email_notifications]==True
@@ -161,7 +161,7 @@ def restricted_allowed_user_mail_body(resource, user=None, download_id = None):
         resource_link = toolkit.url_for(
             controller='package', action='resource_read',
             id=resource.get('package_id'), resource_id=resource.get('id'))
-        user_name = user.get('display_name', user['name'])
+        user_name = user.get('name')
     else:
         resource_link = '/helix/files/restricted_resources/' + download_id + '/download/'
         user_name = 'user'
