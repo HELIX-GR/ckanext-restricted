@@ -328,6 +328,7 @@ def request_resource(context, data_dict):
         controller='package',
         id=data_dict.get('package_name'),
         resource_id=resource_id)
+    package = package_show(context, {'id':data_dict.get('package_name')})
     dashboard_restricted = config.get(
         'ckan.site_url') + '/dashboard/restricted'
     # create request e-mail
@@ -369,4 +370,4 @@ def request_resource(context, data_dict):
             'message': data_dict.get('message')}
     return render(
         'restricted/restricted_request_access_result.html',
-        extra_vars={'data': data, 'success': True})
+        extra_vars={'data': data, 'pkg_dict': package, 'success': True})

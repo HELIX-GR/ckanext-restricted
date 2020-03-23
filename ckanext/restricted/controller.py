@@ -63,6 +63,8 @@ class RestrictedController(toolkit.BaseController):
                 id=data.get('package_name'),
                 resource_id=data.get('resource_id'))
 
+            dashboard_restricted = config.get('ckan.site_url') + '/dashboard/restricted'
+
             extra_vars = {
                 'site_title': config.get('ckan.site_title'),
                 'site_url': config.get('ckan.site_url'),
@@ -75,16 +77,21 @@ class RestrictedController(toolkit.BaseController):
                 'resource_edit_link': config.get('ckan.site_url') + resource_edit_link,
                 'package_name': data.get('pkg_dict').get('title', ''),
                 'message': data.get('message', ''),
+                'dashboard_restricted': dashboard_restricted,
                 'admin_email_to': config.get('email_to', 'email_to_undefined')}
 
-            body = render_jinja2('restricted/emails/restricted_access_request.txt', extra_vars)
+            # authorized or not users
+            if 'user_id' in data:
+                body = render_jinja2('restricted/emails/restricted_access_request.txt', extra_vars)
+            else: 
+                body = render_jinja2('restricted/emails/restricted_access_unauth_request.txt', extra_vars)
             subject = \
                 _('Αίτημα πρόσβασης στο {0}  από τον χρήστη {1}').format(
                     data.get('resource_name', ''),
-                    data.get('user_name', ''))
+                    data.get('user_name', data.get('user_email')))
 
             email_dict = {
-                data.get('maintainer_email'): extra_vars.get('maintainer_name'),
+                data.get('maintainer_email'): extra_vars.get('maintainer_name')
                 #extra_vars.get('admin_email_to'): '{} Admin'.format(extra_vars.get('site_title'))
                 }
 
@@ -102,12 +109,16 @@ class RestrictedController(toolkit.BaseController):
 
             extra_vars['resource_link'] = '[...]'
             extra_vars['resource_edit_link'] = '[...]'
-            body = render_jinja2(
-                'restricted/emails/restricted_access_request.txt', extra_vars)
+            if 'user_id' in data:
+                body = render_jinja2(
+                    'restricted/emails/restricted_access_request.txt', extra_vars)
+            else:
+                body = render_jinja2(
+                    'restricted/emails/restricted_access_unauth_request.txt', extra_vars)
 
             body_user = _(
-                'Please find below a copy of the access '
-                'request mail sent. \n\n >> {}'
+                'Παρακαλώ δείτε παρακάτω ένα αντίγραφο του αίτηματος πρόσβασης '
+                'που στάλθηκε. \n\n >> {}'
             ).format(body.replace("\n", "\n >> "))
 
             mailer.mail_recipient(
@@ -119,8 +130,12 @@ class RestrictedController(toolkit.BaseController):
             log.error(mailer_exception)
 
         # save request to the database
-        request_dict = {'resource_id':data.get('resource_id'), 'message':data.get('message'),
+        if 'user_id' in data:
+            request_dict = {'resource_id':data.get('resource_id'), 'message':data.get('message'),
                      'owner_id':data.get('pkg_dict').get('creator_user_id'), 'user_id':data.get('user_name')}
+        else:
+            request_dict = {'resource_id':data.get('resource_id'), 'message':data.get('message'),
+                     'owner_id':data.get('pkg_dict').get('creator_user_id'), 'request_email':data.get('user_email')}
         ext_logic.save_restricted_request(request_dict)
 
         return success
@@ -160,6 +175,18 @@ class RestrictedController(toolkit.BaseController):
             msg = _('Missing Value')
             errors['message'] = [msg]
             error_summary['message'] = msg
+        
+        import re
+        emailRegex = re.compile('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$') 
+        if (data_dict['user_email'] == ''):
+            msg = _('Missing Value')
+            errors['user_email'] = [msg]
+            error_summary['user_email'] = msg
+        elif not re.match(emailRegex, data_dict['user_email']):
+            msg = _('Invalid value')
+            errors['user_email'] = [msg]
+            error_summary['user_email'] = msg    
+
 
         if len(errors) > 0:
             return self.restricted_request_access_form(
@@ -180,13 +207,15 @@ class RestrictedController(toolkit.BaseController):
             data=None, errors=None, error_summary=None):
         """Redirects to form."""
         user_id = toolkit.c.user
-        if not user_id:
-            toolkit.abort(401, _('Access request form is available to logged in users only.'))
+        #if not user_id:
+        #    toolkit.abort(401, _('Access request form is available to logged in users only.'))
 
         context = {'model': model,
                    'session': model.Session,
-                   'user': user_id,
                    'save': 'save' in request.params}
+
+        if user_id:
+            context['user'] = user_id
 
         data = data or {}
         errors = errors or {}
@@ -200,10 +229,11 @@ class RestrictedController(toolkit.BaseController):
             data['resource_id'] = resource_id
 
             try:
-                user = toolkit.get_action('user_show')(context, {'id': user_id})
-                data['user_id'] = user_id
-                data['user_name'] = user.get('display_name', user_id)
-                data['user_email'] = user.get('email', '')
+                if user_id:
+                    user = toolkit.get_action('user_show')(context, {'id': user_id})
+                    data['user_id'] = user_id
+                    data['user_name'] = user.get('display_name', user_id)
+                    data['user_email'] = user.get('email', '')
 
                 resource_name = ''
 

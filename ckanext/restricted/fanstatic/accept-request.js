@@ -14,7 +14,6 @@ this.ckan.module('accept-request', function ($) {
             $.proxyAll(this, /_on/);
             this.el.on('click', this._onClick);
             var btnAllow = document.getElementById('btnAllow');
-            console.log('in module');
         },
 
 		/* Handles the clicking of the request button
@@ -26,7 +25,8 @@ this.ckan.module('accept-request', function ($) {
         _onClick: function (event) {
             var options = this.options;
             var btnAllow = document.getElementById('btnAllow');
-
+            btnAllow.disabled = true;
+            btnAllow.style.opacity=0.5;
             var client = this.sandbox.client;
             function _onClickLoaded(json) {
                 location.reload();

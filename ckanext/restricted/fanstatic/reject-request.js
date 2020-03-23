@@ -15,7 +15,6 @@ this.ckan.module('reject-request', function ($) {
             $.proxyAll(this, /_on/);
             this.el.on('click', this._onClick);
             var btnDeny = document.getElementById('btnDeny');
-            console.log('in module');
         },
 
 		/* Handles the clicking of the request button
@@ -27,6 +26,8 @@ this.ckan.module('reject-request', function ($) {
         _onClick: function (event) {
             var options = this.options;
             var btnDeny = document.getElementById('btnDeny');
+            btnDeny.disabled = true;
+            btnDeny.style.opacity=0.5;
             var options = this.options;
 
             var client = this.sandbox.client;

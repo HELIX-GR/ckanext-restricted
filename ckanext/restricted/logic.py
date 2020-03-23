@@ -209,10 +209,10 @@ def get_restricted_requests(owner_id, category):
     download_id = ext_model.RestrictedRequest.download_id
     if category == 'registered':
         requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
-            owner_id=owner_id, request_email=None, download_id=None)
+            owner_id=owner_id, request_email=None, rejected_at=None, download_id=None)
     elif category == 'unregistered':
         requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
-            owner_id=owner_id, user_id=None, download_id=None)
+            owner_id=owner_id, user_id=None, rejected_at=None,  download_id=None)
     elif category == 'accepted':
         requests = model.Session.query(
             ext_model.RestrictedRequest).filter_by(owner_id=owner_id,rejected_at=None).filter(download_id!=None)
@@ -242,7 +242,7 @@ def save_restricted_request(request_dict):
     request.message = request_dict.get('message')
     request.user_id = request_dict.get('user_id')
     request.request_email = request_dict.get('request_email')
-    #request.submitted_at = request_dict.get('submitted_at')
+    request.submitted_at = request_dict.get('submitted_at')
     model.Session.commit()
 
 
