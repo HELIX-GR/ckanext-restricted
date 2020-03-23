@@ -1,5 +1,3 @@
-{% trans %}Γειά σας{% endtrans %},
-
 {% trans %}Έχετε ζητήσει πρόσβαση στο {{ site_title }} για τον πόρο: {{ resource_name }}.{% endtrans %}
 {% trans %}Ο υπεύθυνος του συνόλου δεδομένων σας έδωσε πρόσβαση.{% endtrans %}
 
