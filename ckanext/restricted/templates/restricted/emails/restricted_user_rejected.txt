@@ -1,0 +1,10 @@
+{% trans %}Έχετε ζητήσει πρόσβαση στο {{ site_title }} για τον πόρο: {{ resource_name }}.{% endtrans %}
+
+{% trans %}Ο υπεύθυνος του συνόλου δεδομένων απέρριψε το αίτημα σας{% endtrans %}
+
+{% trans %}Με εκτίμηση,{% endtrans %}
+{% trans %}Διαχειριστής {{ site_title }}{% endtrans %}
+
+{% trans %}Αυτο είναι ένα αυτοματοποιημένο email, μην απαντήσετε σε αυτή τη διεύθυνση.{% endtrans %}
+
+{% trans %}Το μήνυμα στάλθηκε από το {{ site_title }} ({{ site_url }}){% endtrans %}

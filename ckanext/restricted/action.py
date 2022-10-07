@@ -301,15 +301,66 @@ def restricted_reject_request(context, data_dict):
     resource_id = data_dict.get('resource_id')
     user_id = data_dict.get('user_id')
     # for authorized users
-    if user_id:
-        resource = ckan.logic.get_action(
+    resource = ckan.logic.get_action(
             'resource_show')(context, {'id': resource_id})
+    if user_id:
         allowed_users = resource.get('allowed_users', '')
         if user_id in allowed_users:
             list_allowed_users = allowed_users.split(',')
             list_allowed_users.remove(user_id)
             resource['allowed_users'] = ','.join(list_allowed_users)
         ckan.logic.get_action('resource_update')(context, resource)
+        user = ckan.logic.get_action('user_show')(context, {'id': user_id})
+        try:
+            # Get user information
+            context = {}
+            context['ignore_auth'] = True
+            context['keep_email'] = True
+            resource_name = resource.get('name', resource['id'])
+            extra_vars = {
+                'site_title': config.get('ckan.site_title'),
+                'site_url': config.get('ckan.site_url'),
+                'user_email': user['email'],
+                'resource_name': resource.get('name', resource['id']),
+                'package_name': data_dict.get('pkg_title'),
+                'admin_email_to': config.get('email_to', 'email_to_undefined')}
+            mail_body = render_jinja2(
+                'restricted/emails/restricted_user_rejected.txt', extra_vars)
+            mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
+                resource_name)
+
+            # Send mail to user
+            mailer.mail_recipient("user", user['email'],
+                                  mail_subject, mail_body)
+
+        except Exception as e:
+            log.warning(('restricted_mail_reject_user: '
+                         'Failed to send mail to "{0}": {1}').format(user_id, e))
+    else:
+        request_email = data_dict.get('request_email')
+        try:
+            # Get user information
+            resource_name = resource.get('name', resource['id'])
+            extra_vars = {
+                'site_title': config.get('ckan.site_title'),
+                'site_url': config.get('ckan.site_url'),
+                'user_email': request_email,
+                'resource_name': resource.get('name', resource['id']),
+                'package_name': data_dict.get('pkg_title'),
+                'admin_email_to': config.get('email_to', 'email_to_undefined')}
+            mail_body = render_jinja2(
+                'restricted/emails/restricted_user_rejected.txt', extra_vars)
+            mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
+                resource_name)
+
+            # Send mail to user
+            mailer.mail_recipient("user",request_email,
+                                  mail_subject, mail_body)
+
+        except Exception as e:
+            log.warning(('restricted_mail_reject_user: '
+                         'Failed to send mail to "{0}": {1}').format(user_id, e))
+
     now = datetime.datetime.now()
     request_dict = {'request_id': request_id,
                     'rejected_at': now}

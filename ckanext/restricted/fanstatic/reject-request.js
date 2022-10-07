@@ -4,7 +4,7 @@ this.ckan.module('reject-request', function ($) {
         options: {
             action: null,
             user_id: null,
-            user_email: null,
+            request_email: null,
         },
 
 		/* Initialises the module setting up elements and event listeners.
@@ -36,8 +36,10 @@ this.ckan.module('reject-request', function ($) {
                 console.log('success, deleted');
                 
             };
-            console.log(options.request_id);
-            client.call('POST', 'restricted_reject_request', { request_id: options.request_id, resource_id: options.resource_id, user_id: options.user_id},_onClickLoaded);
+            client.call('POST', 'restricted_reject_request', {  request_id: options.request_id,
+                                                                resource_id: options.resource_id, 
+                                                                user_id: options.user_id,
+                                                                request_email: options.request_email },_onClickLoaded);
 
         }
     };
