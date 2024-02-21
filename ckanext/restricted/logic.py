@@ -127,7 +127,7 @@ def restricted_check_user_resource_access(user, resource_dict, package_dict):
                 'organization ({}) members').format(pkg_organization_id)}
 
 def restricted_mail_allowed_user(user_id, resource):
-    log.debug('restricted_mail_allowed_user: Notifying "{}"'.format(user_id))
+    log.info('restricted_mail_allowed_user: Notifying "{}"'.format(user_id))
     try:
         # Get user information
         context = {}
@@ -206,6 +206,7 @@ def restricted_notify_allowed_users(previous_value, updated_resource):
 def get_restricted_requests(owner_id, category):
     result = []
     context = {'model': model, 'session': model.Session, 'user': c.user}
+    log.info('get_restricted_requests, owner id:"{0}", user:{1}, category:{2}'.format(owner_id, c.user, category))
     download_id = ext_model.RestrictedRequest.download_id
     if category == 'registered':
         requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
@@ -217,6 +218,7 @@ def get_restricted_requests(owner_id, category):
         requests = model.Session.query(
             ext_model.RestrictedRequest).filter_by(owner_id=owner_id,rejected_at=None).filter(download_id!=None)
     for request in requests:
+        log.info('resource id: {}'.format(request.resource_id))
         resource = logic.get_action('resource_show')(
             context, {'id': request.resource_id})
         result.append({
@@ -230,6 +232,7 @@ def get_restricted_requests(owner_id, category):
             'request_email': request.request_email,
             'state': 'true' if request.download_id else 'false'
         })
+    log.info('get_restricted_requests: requests: "{}"'.format(result))
     return result
 
 def save_restricted_request(request_dict):
