@@ -206,6 +206,7 @@ def restricted_notify_allowed_users(previous_value, updated_resource):
 def get_restricted_requests(owner_id, category):
     result = []
     context = {'model': model, 'session': model.Session, 'user': c.user}
+    context.update({'ignore_auth': True})
     log.info('get_restricted_requests, owner id:"{0}", user:{1}, category:{2}'.format(owner_id, c.user, category))
     download_id = ext_model.RestrictedRequest.download_id
     if category == 'registered':
@@ -221,6 +222,7 @@ def get_restricted_requests(owner_id, category):
         log.info('resource id: {}'.format(request.resource_id))
         resource = logic.get_action('resource_show')(
             context, {'id': request.resource_id})
+        log.info('resource: {0}, request: {1}'.format(resource, request))
         result.append({
             'resource_name': resource['name'],
             'resource_id': resource['id'],
