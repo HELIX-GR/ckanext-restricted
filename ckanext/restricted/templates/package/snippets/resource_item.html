@@ -1,8 +1,6 @@
 {% ckan_extends %}
 
 {% set can_edit = h.check_access('package_update', {'id': pkg.id }) %}
-{% set url_action = 'resource_edit' if url_is_edit and can_edit else 'resource_read' %}
-{% set url = h.url_for(controller='package', action=url_action, id=pkg.name, resource_id=res.id) %}
 {% set authorized = h.check_access('resource_show', {'id': res.id, 'resource': res }) %}
 {% set user_id = h.restricted_get_user_id() %}
 
@@ -19,20 +17,8 @@
   {% if authorized %}
     {{ super() }}
   {% else %}
-  <div class="dropdown btn-group request-access">
-    <a href="{{ h.url_for('restricted_request_access', package_id=pkg.name, resource_id=res.id) }}" class="btn btn-manage"><i class="fa fa-icon fa-unlock-alt" style="margin-right: 5px;"></i>{{ _('Request Access')}}</a>
+  <div class="hdx-btn-group hdx-btn-group-fixed request-access">
+    <a href="{{ h.url_for('restricted.restricted_request_access_form', package_id=pkg.name, resource_id=res.id) }}" class="btn btn-empty btn-empty-blue hdx-btn"><i class="fa fa-unlock-alt"></i> {{ _('Request Access') }}</a>
   </div>
-    {#
-  <div class="dropdown btn-group restricted-link">
-    <i class="fa fa-icon fa-user"></i>
-      {% block resource_item_unauthorized %}
-    <a href="{{ h.url_for(controller='user', action='login', came_from='/dataset/'+pkg.name) }}" >{{ _('Log in') }}</a> {{ _('or') }} <a href="{{ h.url_for(controller='user', action='register') }}" >{{ _('Register')}}</a> {{ _('to access resource')}}
-      {% endblock %}
-  </div> #}
-  
-  {#<a class='btn btn-manage black contact' id="request-button" data-module="request-resource" data-module-resource_id="{{res.id}}" data-module-resource_name="{{res.name}}"
-        data-module-action="request_resource" data-module-contact_email="{{pkg.datacite.contact_email}}" data-toggle="tooltip" data-module-package_name="{{pkg.id}}"
-        data-module-pkg_title="{{pkg.title}}" data-module-creator_id="{{pkg.creator_user_id}}" data-placement="bottom">{{_('Request Access')}}</a>
-    {% endif%} #}
   {% endif %}
 {% endblock %}

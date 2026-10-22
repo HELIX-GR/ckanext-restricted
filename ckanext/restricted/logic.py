@@ -4,12 +4,17 @@ from __future__ import unicode_literals
 import ckan.authz as authz
 from ckan.common import _, c
 
-from ckan.lib.base import render_jinja2
+import ckan.plugins.toolkit as tk
 import ckan.lib.mailer as mailer
+import ckan.lib.search as search
 import ckan.logic as logic
 import ckan.plugins.toolkit as toolkit
+import base64
+import datetime
+import os
 import json
 import ckan.model as model
+from sqlalchemy import or_
 import ckanext.restricted.model as ext_model
 
 try:
@@ -24,11 +29,27 @@ from logging import getLogger
 log = getLogger(__name__)
 
 
+def email_site_title():
+    """Site name used in emails (instead of ckan.site_title, which is "CKAN")."""
+    return config.get('ckanext.restricted.email_site_title', 'HARDMIN')
+
+
+def send_mail(recipient_name, recipient_email, subject, body, body_html=None, headers=None):
+    """ckan.lib.mailer.mail_recipient, but with our own sender name in the From header.
+
+    The public mail_recipient always uses ckan.site_title as sender name.
+    """
+    mailer._mail_recipient(
+        recipient_name, recipient_email, email_site_title(), config.get('ckan.site_url'),
+        subject, body, body_html=body_html, headers=headers)
+
+
 def restricted_get_username_from_context(context):
     auth_user_obj = context.get('auth_user_obj', None)
     user_name = ''
     if auth_user_obj:
-        user_name = auth_user_obj.as_dict().get('name', '')
+        # flask-login's AnonymousUser has no name
+        user_name = getattr(auth_user_obj, 'name', '') or ''
     else:
         if authz.get_user_id_for_username(context.get('user'), allow_none=True):
             user_name = context.get('user', '')
@@ -45,14 +66,14 @@ def restricted_get_restricted_dict(resource_dict):
         extras = resource_dict.get('extras', {})
         # or the dict might exist as a direct descendant of the resource dict
         restricted = resource_dict.get('restricted', extras.get('restricted', {}))
-        if not isinstance(restricted, dict):
+        #if not isinstance(restricted, dict):
             # if the restricted property does exist, but not as a dict,
             # we may need to parse it as a JSON string to gain access to the values.
             # as is the case when making composite fields
-            try:
-                restricted = json.loads(restricted)
-            except ValueError:
-                restricted = {}
+            # try:
+            #     restricted = json.loads(restricted)
+            # except ValueError:
+            #     restricted = {}
         if restricted:
             #restricted_level = restricted.get('level', 'public')
             #allowed_users = restricted.get('allowed_users', '')
@@ -144,7 +165,7 @@ def restricted_mail_allowed_user(user_id, resource):
         mail_subject = _('Αποδοχή αιτήματος πρόσβασης στον πόρο {}').format(resource_name)
 
         # Send mail to user
-        mailer.mail_recipient(user_name, user_email, mail_subject, mail_body)
+        send_mail(user_name, user_email, mail_subject, mail_body)
 
         # Send copy to admin (temporarily disabled)
         #mailer.mail_recipient(
@@ -158,22 +179,26 @@ def restricted_mail_allowed_user(user_id, resource):
 
 def restricted_allowed_user_mail_body(resource, user=None, download_id = None):
     if user:
-        resource_link = toolkit.url_for(
-            controller='package', action='resource_read',
-            id=resource.get('package_id'), resource_id=resource.get('id'))
+        if resource.get('url_type') == 'upload':
+            # uploaded file: our own route forces a download (CKAN's would open it in the browser)
+            resource_link = toolkit.url_for('restricted.download_resource_as_user', resource_id=resource.get('id'))
+        else:
+            resource_link = toolkit.url_for(
+                'dataset_resource.read',
+                id=resource.get('package_id'), resource_id=resource.get('id'))
         user_name = user.get('name')
     else:
-        resource_link = '/helix/files/restricted_resources/' + download_id + '/download/'
+        resource_link = toolkit.url_for('restricted.download_resource', download_id=download_id)
         user_name = 'user'
     extra_vars = {
-        'site_title': config.get('ckan.site_title'),
+        'site_title': email_site_title(),
         'site_url': config.get('ckan.site_url'),
         'user_name': user_name,
         'resource_name': resource.get('name', resource['id']),
         'resource_link': config.get('ckan.site_url') + resource_link,
         'resource_url': resource.get('url')}
 
-    return render_jinja2(
+    return tk.render(
         'restricted/emails/restricted_user_allowed.txt', extra_vars)
 
 def restricted_notify_allowed_users(previous_value, updated_resource):
@@ -207,7 +232,6 @@ def get_restricted_requests(owner_id, category):
     result = []
     context = {'model': model, 'session': model.Session, 'user': c.user}
     context.update({'ignore_auth': True})
-    log.info('get_restricted_requests, owner id:"{0}", user:{1}, category:{2}'.format(owner_id, c.user, category))
     download_id = ext_model.RestrictedRequest.download_id
     if category == 'registered':
         requests = model.Session.query(ext_model.RestrictedRequest).filter_by(
@@ -219,10 +243,8 @@ def get_restricted_requests(owner_id, category):
         requests = model.Session.query(
             ext_model.RestrictedRequest).filter_by(owner_id=owner_id,rejected_at=None).filter(download_id!=None)
     for request in requests:
-        log.info('resource id: {}'.format(request.resource_id))
         resource = logic.get_action('resource_show')(
             context, {'id': request.resource_id})
-        log.info('resource: {0}, request: {1}'.format(resource, request))
         result.append({
             'resource_name': resource['name'],
             'resource_id': resource['id'],
@@ -234,7 +256,6 @@ def get_restricted_requests(owner_id, category):
             'request_email': request.request_email,
             'state': 'true' if request.download_id else 'false'
         })
-    log.info('get_restricted_requests: requests: "{}"'.format(result))
     return result
 
 def save_restricted_request(request_dict):
@@ -261,3 +282,194 @@ def update_restricted_request(request_dict):
         request.rejected_at = request_dict.get('rejected_at', request.rejected_at)
     model.Session.commit()
     
+
+
+# --- Access request management (dataset owner dashboard) ---------------------
+
+STATUS_PENDING = 'pending'
+STATUS_ACCEPTED = 'accepted'
+STATUS_REJECTED = 'rejected'
+STATUS_REVOKED = 'revoked'
+
+
+def get_package_owner(package_dict):
+    """Return the user object that manages access requests for a dataset.
+
+    The owner is the dataset creator. When the creator is missing or is a
+    sysadmin (e.g. datasets migrated by an admin whose real owner has not yet
+    registered), None is returned and the caller falls back to the site admin.
+    """
+    creator = model.User.get(package_dict.get('creator_user_id') or '')
+    if creator is None or creator.sysadmin:
+        return None
+    return creator
+
+
+def _request_status(request):
+    if request.rejected_at:
+        # accepted first, then withdrawn by the owner
+        return STATUS_REVOKED if request.accepted_at else STATUS_REJECTED
+    if request.accepted_at:
+        return STATUS_ACCEPTED
+    return STATUS_PENDING
+
+
+def _request_to_dict(request, resource, package):
+    requester = model.User.get(request.user_id or '')
+    return {
+        'request_id': request.request_id,
+        'resource_id': resource.id,
+        'resource_name': resource.name or resource.id,
+        'package_name': package.name,
+        'package_title': package.title or package.name,
+        'user_id': request.user_id,
+        'user_display_name': requester.display_name if requester else (request.user_id or request.request_email),
+        'user_email': requester.email if requester else request.request_email,
+        'message': request.message,
+        'submitted_at': request.submitted_at,
+        'status': _request_status(request),
+    }
+
+
+def _requests_query():
+    return (model.Session.query(ext_model.RestrictedRequest, model.Resource, model.Package)
+            .join(model.Resource, model.Resource.id == ext_model.RestrictedRequest.resource_id)
+            .join(model.Package, model.Package.id == model.Resource.package_id)
+            .filter(model.Resource.state == 'active')
+            .order_by(ext_model.RestrictedRequest.submitted_at.desc()))
+
+
+def _owner_filter(user):
+    """Packages whose requests `user` manages: own datasets, and for sysadmins
+    also the ones without a regular-user owner (see get_package_owner)."""
+    cond = model.Package.creator_user_id == user.id
+    if user.sysadmin:
+        sysadmin_ids = [u.id for u in model.Session.query(model.User).filter_by(sysadmin=True)]
+        cond = or_(cond, model.Package.creator_user_id.in_(sysadmin_ids),
+                   model.Package.creator_user_id.is_(None))
+    return cond
+
+
+def get_requests_for_owner(user):
+    """Requests (all states) for resources in datasets managed by `user`."""
+    query = _requests_query().filter(_owner_filter(user))
+    return [_request_to_dict(*row) for row in query]
+
+
+def get_requests_made_by(user):
+    """Requests (all states) submitted by `user`."""
+    query = _requests_query().filter(ext_model.RestrictedRequest.user_id == user.name)
+    return [_request_to_dict(*row) for row in query]
+
+
+def get_pending_request(user_name, resource_id, request_email=None):
+    """Pending request of a registered user, or of an unregistered one (by email)."""
+    filters = {'user_id': user_name} if user_name else {'user_id': None, 'request_email': request_email}
+    return model.Session.query(ext_model.RestrictedRequest).filter_by(
+        resource_id=resource_id, accepted_at=None, rejected_at=None, **filters).first()
+
+
+def _get_manageable_request(request_id, acting_user):
+    """Return (request, resource, package) if `acting_user` may manage it."""
+    row = _requests_query().filter(
+        ext_model.RestrictedRequest.request_id == request_id).filter(_owner_filter(acting_user)).first()
+    if row is None:
+        raise tk.ObjectNotFound(_('Request not found'))
+    return row
+
+
+def accept_request(request_id, acting_user):
+    """Add the requester to the resource's allowed users and notify them.
+
+    Only `allowed_users` is changed, directly on the resource, so datasets
+    that fail full schema validation (e.g. legacy/migrated ones) can still be
+    approved by their owner.
+    """
+    request, resource, package = _get_manageable_request(request_id, acting_user)
+    if _request_status(request) != STATUS_PENDING:
+        raise tk.ValidationError({'request': [_('Request already handled')]})
+
+    if request.user_id:
+        allowed = [u.strip() for u in (resource.extras.get('allowed_users') or '').split(',') if u.strip()]
+        if request.user_id not in allowed:
+            allowed.append(request.user_id)
+        resource.extras = dict(resource.extras, allowed_users=','.join(allowed))
+    else:
+        # unregistered requester: personal download link, sent by email
+        request.download_id = base64.b32encode(os.urandom(30)).decode()
+    request.accepted_at = datetime.datetime.utcnow()
+    model.Session.commit()
+
+    try:
+        search.rebuild(package.id)
+    except Exception:
+        log.exception('Failed to reindex dataset %s after accepting a request', package.name)
+
+    if request.user_id:
+        restricted_mail_allowed_user(request.user_id, resource.as_dict())
+    else:
+        _mail_download_link(request, resource.as_dict())
+
+
+def _mail_download_link(request, resource_dict):
+    try:
+        body = restricted_allowed_user_mail_body(resource_dict, download_id=request.download_id)
+        subject = _('Αποδοχή αιτήματος πρόσβασης στον πόρο {}').format(resource_dict.get('name', resource_dict['id']))
+        send_mail('user', request.request_email, subject, body)
+    except Exception as e:
+        log.warning('Failed to send download link to "%s": %s', request.request_email, e)
+
+
+def reject_request(request_id, acting_user):
+    request, resource, package = _get_manageable_request(request_id, acting_user)
+    if _request_status(request) != STATUS_PENDING:
+        raise tk.ValidationError({'request': [_('Request already handled')]})
+
+    request.rejected_at = datetime.datetime.utcnow()
+    model.Session.commit()
+    _mail_rejection(request, resource, package)
+
+
+def revoke_request(request_id, acting_user):
+    """Withdraw an accepted request.
+
+    Registered requesters are removed from the resource's allowed users;
+    unregistered ones lose their download link (it only works while the
+    request is accepted and not rejected). The requester is notified.
+    """
+    request, resource, package = _get_manageable_request(request_id, acting_user)
+    if _request_status(request) != STATUS_ACCEPTED:
+        raise tk.ValidationError({'request': [_('Request already handled')]})
+
+    if request.user_id:
+        allowed = [u.strip() for u in (resource.extras.get('allowed_users') or '').split(',') if u.strip()]
+        allowed = [u for u in allowed if u != request.user_id]
+        resource.extras = dict(resource.extras, allowed_users=','.join(allowed))
+    request.rejected_at = datetime.datetime.utcnow()
+    model.Session.commit()
+
+    if request.user_id:
+        try:
+            search.rebuild(package.id)
+        except Exception:
+            log.exception('Failed to reindex dataset %s after revoking a request', package.name)
+    _mail_rejection(request, resource, package)
+
+
+def _mail_rejection(request, resource, package):
+    requester = model.User.get(request.user_id or '')
+    requester_name = requester.display_name if requester else 'user'
+    requester_email = requester.email if requester else request.request_email
+    if requester_email:
+        resource_name = resource.name or resource.id
+        body = tk.render('restricted/emails/restricted_user_rejected.txt', {
+            'site_title': email_site_title(),
+            'site_url': config.get('ckan.site_url'),
+            'resource_name': resource_name,
+            'package_name': package.title or package.name,
+            'admin_email_to': config.get('email_to', 'email_to_undefined')})
+        subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(resource_name)
+        try:
+            send_mail(requester_name, requester_email, subject, body)
+        except mailer.MailerException as e:
+            log.warning('Failed to send rejection mail to "%s": %s', request.user_id, e)

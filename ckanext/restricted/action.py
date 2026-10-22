@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import ckan.authz as authz
 from ckan.common import _, c
 
-from ckan.lib.base import render_jinja2, render
+import ckan.plugins.toolkit as tk
 from ckan.lib.mailer import mail_recipient
 from ckan.lib.mailer import MailerException
 import ckan.plugins.toolkit as toolkit
@@ -24,7 +24,6 @@ import json
 import os
 import base64
 import datetime
-from ckan.lib.base import render
 
 import ckan.model as model
 import ckan.lib.helpers as h
@@ -71,7 +70,7 @@ def restricted_user_create_and_notify(context, data_dict):
             'site_url': config.get('ckan.site_url'),
             'user_info': body_from_user_dict(user_dict)}
 
-        body = render_jinja2(
+        body = tk.render(
             'restricted/emails/restricted_user_registered.txt', extra_vars)
 
         mail_recipient(name, email, subject, body)
@@ -149,8 +148,12 @@ def restricted_package_search(context, data_dict):
         if key == 'results':
             restricted_package_search_result_list = []
             for package in value:
-                restricted_package_search_result_list.append(
-                    restricted_package_show(context, {'id': package.get('id')}))
+                try:
+                    restricted_package_search_result_list.append(
+                        restricted_package_show(context, {'id': package.get('id')}))
+                except NotFound:
+                    # stale search index entry: dataset no longer in the DB
+                    continue
             restricted_package_search_result[key] = \
                 restricted_package_search_result_list
         else:
@@ -172,12 +175,8 @@ def restricted_check_access(context, data_dict):
     if not resource_id:
         raise ckan.logic.ValidationError('Missing resource_id')
 
-    log.debug("action.restricted_check_access: user_name = " + str(user_name))
-
-    log.debug("checking package " + str(package_id))
     package_dict = ckan.logic.get_action('package_show')(
         dict(context, return_type='dict'), {'id': package_id})
-    log.debug("checking resource")
     resource_dict = ckan.logic.get_action('resource_show')(
         dict(context, return_type='dict'), {'id': resource_id})
 
@@ -324,7 +323,7 @@ def restricted_reject_request(context, data_dict):
                 'resource_name': resource.get('name', resource['id']),
                 'package_name': data_dict.get('pkg_title'),
                 'admin_email_to': config.get('email_to', 'email_to_undefined')}
-            mail_body = render_jinja2(
+            mail_body = tk.render(
                 'restricted/emails/restricted_user_rejected.txt', extra_vars)
             mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
                 resource_name)
@@ -348,7 +347,7 @@ def restricted_reject_request(context, data_dict):
                 'resource_name': resource.get('name', resource['id']),
                 'package_name': data_dict.get('pkg_title'),
                 'admin_email_to': config.get('email_to', 'email_to_undefined')}
-            mail_body = render_jinja2(
+            mail_body = tk.render(
                 'restricted/emails/restricted_user_rejected.txt', extra_vars)
             mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
                 resource_name)
@@ -394,7 +393,7 @@ def request_resource(context, data_dict):
         'dashboard_restricted': dashboard_restricted,
         'admin_email_to': config.get('email_to', 'email_to_undefined')}
 
-    body = render_jinja2(
+    body = tk.render(
         'restricted/emails/restricted_access_unauth_request.txt', extra_vars)
     subject = \
         _('Αίτημα πρόσβασης στο {0}  από τον χρήστη {1}').format(
@@ -419,6 +418,6 @@ def request_resource(context, data_dict):
     data = {'resource_id': resource_id, 'maintainer_email': contact_email,
             'user_email': data_dict.get('email'), 'package_title':data_dict.get('pkg_title'),
             'message': data_dict.get('message')}
-    return render(
+    return tk.render(
         'restricted/restricted_request_access_result.html',
         extra_vars={'data': data, 'pkg_dict': package, 'success': True})

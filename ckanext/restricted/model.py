@@ -1,70 +1,71 @@
-
-import sqlalchemy.orm as orm
-import sqlalchemy.types as types
-import ckan.model as model
-from ckan.model.domain_object import DomainObject
-from ckan.model import meta, extension
+# -*- coding: utf-8 -*-
 import datetime
-
-from sqlalchemy.schema import Table, Column, ForeignKey, CreateTable, Index
-
 import logging
 
-logger = logging.getLogger(__name__)
+from sqlalchemy import Column, String, UnicodeText, DateTime
+from sqlalchemy.ext.declarative import declarative_base
 
-restricted_requests_table = None
+import ckan.model as model
+from ckan.model import meta, Session
+
+log = logging.getLogger(__name__)
+
+# Bind declarative base to CKAN's metadata 
+Base = declarative_base(metadata=meta.metadata)
+
+
+class RestrictedRequest(Base):
+    """
+    ORM model for restricted download requests.
+    """
+    __tablename__ = 'restricted_requests'
+
+    request_id = Column(String, primary_key=True, default=model.types.make_uuid)
+    request_email = Column(String)
+
+    user_id = Column(String)
+    resource_id = Column(String, nullable=False)
+    owner_id = Column(UnicodeText, nullable=False)
+
+    download_id = Column(String)
+    message = Column(String)
+
+    submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
+    accepted_at = Column(DateTime)
+    rejected_at = Column(DateTime)
 
 
 def setup():
-    '''Define and create table (if needed)'''
-    if restricted_requests_table is None:
-        define_table()
-        logger.debug('Table `restricted_requests` is defined in ORM mapper')
+    """
+    Ensure tables exist.
+    NOTE: For production you should prefer Alembic migrations, but this is a
+    practical compatibility approach for older extensions.
+    """
     create_table()
 
 
-class RestrictedRequest(DomainObject):
-    '''The ORM entity that represents a restricted request'''
-
-    #def __init__(self, resource_id, owner_id, message):
-    #    #self.request_id = request_id
-    #    self.resource_id = resource_id
-    #    self.owner_id = owner_id
-    #    self.message = message
-
-def define_table():
-    global restricted_requests_table
-    restricted_requests_table = Table('restricted_requests', meta.metadata,
-        Column('request_id', types.String, primary_key=True, default=model.types.make_uuid),
-        Column('request_email', types.String),
-        Column('user_id', types.String), 
-        Column('resource_id', types.String, nullable=False), 
-        Column('owner_id', types.UnicodeText, nullable=False), 
-        Column('download_id', types.String), 
-        Column('message', types.String), 
-        Column('submitted_at', types.DateTime, default=datetime.datetime.now()),
-        Column('accepted_at', types.DateTime),
-        Column('rejected_at', types.DateTime) 
-    )
-    orm.mapper(RestrictedRequest, restricted_requests_table, extension=[extension.PluginMapperExtension(), ])
-
-
 def create_table():
-    '''Create restricted_requests table'''
-    if model.user_table.exists() and not restricted_requests_table.exists():
-        restricted_requests_table.create()
-        logger.info('Table `restricted_requests` created')
+    """
+    Create restricted_requests table if it doesn't exist.
+    """
+    if model.user_table.exists(bind=meta.engine):
+        Base.metadata.create_all(bind=meta.engine, tables=[RestrictedRequest.__table__])
+        log.info("Table `restricted_requests` ensured (create_all checkfirst)")
 
 
 def truncate_table():
-    '''Truncate restricted_requests table'''
-    if restricted_requests_table.exists():
-        restricted_requests_table.delete()
-        logger.info('Table `restricted_requests` is truncated')
+    """
+    Delete all rows from restricted_requests.
+    """
+    Session.query(RestrictedRequest).delete(synchronize_session=False)
+    Session.commit()
+    log.info("Table `restricted_requests` truncated (all rows deleted)")
 
 
 def drop_table():
-    '''Drop restricted_requests table'''
-    if restricted_requests_table.exists():
-        restricted_requests_table.drop()
-        logger.info('Table `restricted_requests` is dropped')
+    """
+    Drop restricted_requests table.
+    """
+    RestrictedRequest.__table__.drop(bind=meta.engine, checkfirst=True)
+    Session.commit()
+    log.info("Table `restricted_requests` dropped")

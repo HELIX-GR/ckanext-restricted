@@ -17,7 +17,6 @@
           <li><b>{{ _('User Email') }}:</b> {{ data.get('user_email') }}</li>
           <li><b>{{ _('Dataset') }}:</b> {{ data.get('package_title') }}</li>
           <li><b>{{ _('Resource') }}:</b> {{ data.get('resource_id') }}</li>
-          <li><b>{{ _('Contact Email') }}:</b> {{ data.get('maintainer_email') }}</li>
           <li><b>{{ _('Message') }}:</b> {{ data.get('message') }}</li>
         </ul>
       </div>
@@ -26,7 +25,7 @@
   {% block form_actions %}
   <div class="form-actions">
     {% block confirm_button %}
-    <a class="btn btn-primary pull-right btn-restricted" href="{% url_for controller='package', action='read', id=pkg.name %}" data-module="cancel-action" >{{ _('Close') }}</a>
+    <a class="btn btn-primary pull-right btn-restricted" href="{{ h.url_for('dataset.read', id=pkg.name) }}" data-module="cancel-action" >{{ _('Close') }}</a>
     {% endblock %}
   </div>
   {% endblock %}

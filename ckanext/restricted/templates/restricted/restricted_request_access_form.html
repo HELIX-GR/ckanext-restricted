@@ -5,19 +5,6 @@
 {% set license_title = pkg_dict.get('license_title', 'dataset license') %}
 {% set license_url = pkg_dict.get('license_url', '#') %}
 
-{% block breadcrumb_content %}
-  {% set dataset = pkg.title or pkg.name %}
-  {% if pkg.organization %}
-    {% set organization = pkg.organization.title or pkg.organization.name %}
-    <a class="breadcrumbs-part"{% link_for _('Institutions'), controller='organization', action='index' %}</a>
-    <a class="breadcrumbs-part"{% link_for organization|truncate(30), controller='organization', action='read', id=pkg.organization.name %}</a>
-  {% else %}
-    <li>{% link_for _('Datasets'), controller='package', action='search' %}</li>
-  {% endif %}
-  <a class="breadcrumbs-part"{% link_for dataset|truncate(30), controller='package', action='read', id=pkg.name %}</a>
-  <a class="breadcrumbs-part" href="">  {{ _('Request Access') }}</a>
-{% endblock %}
-
 
 {% block head_extras %}
   {{ super() }}
@@ -38,12 +25,10 @@
   {% block basic_fields %}
     <input id='field-package_name' name='package_name' type="hidden" value="{{ data.package_name }}" />
     <input id='field-resource_name' name='resource_name' type="hidden" value="{{ data.resource_name }}" />
-    <input id='field-maintainer_name' name='maintainer_name' type="hidden" value="{{ data.maintainer_name }}" />
     {# replaced visible package id with title for readability #}
     <input class="form-control" id='field-package_id' type='hidden' name='package_id' value=data.package_id  />
     {{ restricted_input_disabled('package_title', id='field-package_title', label=_('Dataset'), value=data.package_title, error=errors.package_title, classes=['control-full']) }}
     {{ restricted_input_disabled('resource_id', id='field-resource_id', label=_('Resource'), value=data.resource_id, error=errors.resource_id, classes=['control-full']) }}
-    {{ restricted_input_disabled('maintainer_email', label=_('Dataset contact email'), id='field-maintainer_email', value=data.maintainer_email, error=errors.maintainer_email, classes=['control-full']) }}
     {% if data.user_id %}
       <input id='field-user_id' name='user_id' type="hidden" value="{{ data.user_id }}" />
       {{ restricted_input_disabled('user_name', id='field-user_name', label=_('User'), value=data.user_name, error=errors.user_name, classes=['control-full'] ) }}
@@ -61,7 +46,7 @@
     <div class="form-actions">
       {% block disclaimer %}
         <p class="action-info small">
-          {% trans %}The <i>data license</i> applies to the contents
+          {% trans trimmed %}The <i>data license</i> applies to the contents
           of any resource files that you request from this dataset. By submitting
           this form, you agree to usage restrictions under the
           <a href={{ license_url }}>{{ license_title }}</a>.{% endtrans %}
@@ -71,7 +56,7 @@
         <button class="btn btn-primary" type="submit" name="save"><i class="fa fa-icon fa-envelope-o"></i> {{ _('Send Request') }}</button>
       {% endblock %}
       {% block cancel_button %}
-        <a class="btn btn-danger" href="{% url_for controller='package', action='read', id=data.package_id %}" data-module="cancel-action" >{{ _('Cancel') }}</a>
+        <a class="btn btn-danger" href="{{ h.url_for('dataset.read', id=data.package_name) }}" data-module="cancel-action" >{{ _('Cancel') }}</a>
       {% endblock %}
     </div>
   {% endblock %}

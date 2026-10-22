@@ -1,0 +1,95 @@
+{% extends "user/dashboard.html" %}
+
+{% block dashboard_activity_stream_context %}{% endblock %}
+{% block add_action_content %}{% endblock %}
+{% block page_header_inner %}{% endblock %}
+
+{% macro status_label(status) %}
+  {% if status == 'accepted' %}
+    <span class="badge bg-success">{{ _('Accepted') }}</span>
+  {% elif status == 'revoked' %}
+    <span class="badge bg-secondary">{{ _('Revoked') }}</span>
+  {% elif status == 'rejected' %}
+    <span class="badge bg-danger">{{ _('Rejected') }}</span>
+  {% else %}
+    <span class="badge bg-warning text-dark">{{ _('Pending') }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% block primary_content_inner %}
+  <h3 class="sspBold20 mb-3">{{ _('Requests for my datasets') }}</h3>
+  {% if received_requests %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>{{ _('Date') }}</th>
+          <th>{{ _('User') }}</th>
+          <th>{{ _('Dataset') }} / {{ _('Resource') }}</th>
+          <th>{{ _('Message') }}</th>
+          <th>{{ _('Status') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in received_requests %}
+          <tr>
+            <td>{{ h.render_datetime(req.submitted_at, with_hours=True) }}</td>
+            <td>{{ req.user_display_name }}{% if req.user_email %}<br><small>{{ req.user_email }}</small>{% endif %}</td>
+            <td>
+              <a href="{{ h.url_for('dataset.read', id=req.package_name) }}">{{ req.package_title }}</a><br>
+              <small>{{ req.resource_name }}</small>
+            </td>
+            <td>{{ req.message }}</td>
+            <td>{{ status_label(req.status) }}</td>
+            <td class="text-nowrap">
+              {% if req.status == 'pending' %}
+                {% for decision, label, cls in [('accept', _('Accept'), 'btn-primary'), ('reject', _('Reject'), 'btn-secondary')] %}
+                  <form method="post" class="d-inline" action="{{ h.url_for('restricted.dashboard_handle_request', request_id=req.request_id, decision=decision) }}">
+                    {{ h.csrf_input() }}
+                    <button type="submit" class="btn btn-sm {{ cls }}">{{ label }}</button>
+                  </form>
+                {% endfor %}
+              {% elif req.status == 'accepted' %}
+                <form method="post" class="d-inline" action="{{ h.url_for('restricted.dashboard_handle_request', request_id=req.request_id, decision='revoke') }}">
+                  {{ h.csrf_input() }}
+                  <button type="submit" class="btn btn-sm btn-outline-danger">{{ _('Revoke access') }}</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="sspRegular16">{{ _('No access requests for your datasets.') }}</p>
+  {% endif %}
+
+  <h3 class="sspBold20 mt-5 mb-3">{{ _('My requests') }}</h3>
+  {% if my_requests %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>{{ _('Date') }}</th>
+          <th>{{ _('Dataset') }} / {{ _('Resource') }}</th>
+          <th>{{ _('Message') }}</th>
+          <th>{{ _('Status') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in my_requests %}
+          <tr>
+            <td>{{ h.render_datetime(req.submitted_at, with_hours=True) }}</td>
+            <td>
+              <a href="{{ h.url_for('dataset.read', id=req.package_name) }}">{{ req.package_title }}</a><br>
+              <small>{{ req.resource_name }}</small>
+            </td>
+            <td>{{ req.message }}</td>
+            <td>{{ status_label(req.status) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="sspRegular16">{{ _('You have not requested access to any resource.') }}</p>
+  {% endif %}
+{% endblock %}
