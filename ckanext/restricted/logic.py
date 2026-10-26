@@ -31,7 +31,7 @@ log = getLogger(__name__)
 
 def email_site_title():
     """Site name used in emails (instead of ckan.site_title, which is "CKAN")."""
-    return config.get('ckanext.restricted.email_site_title', 'HARDMIN')
+    return config.get('ckanext.restricted.email_site_title', 'HEAL-Link')
 
 
 def send_mail(recipient_name, recipient_email, subject, body, body_html=None, headers=None):
