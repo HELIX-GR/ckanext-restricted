@@ -36,7 +36,7 @@ def email_site_title():
 
 def admin_email():
     """Address of the site admin, used instead of `email_to` (which also turns on CKAN's error mail handler)."""
-    return config.get('ckanext.restricted.admin_email')
+    return config.get('admin_email')
 
 
 def send_mail(recipient_name, recipient_email, subject, body, body_html=None, headers=None):
