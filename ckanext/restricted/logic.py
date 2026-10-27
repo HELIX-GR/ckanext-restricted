@@ -34,6 +34,11 @@ def email_site_title():
     return config.get('ckanext.restricted.email_site_title', 'HEAL-Link')
 
 
+def admin_email():
+    """Address of the site admin, used instead of `email_to` (which also turns on CKAN's error mail handler)."""
+    return config.get('ckanext.restricted.admin_email')
+
+
 def send_mail(recipient_name, recipient_email, subject, body, body_html=None, headers=None):
     """ckan.lib.mailer.mail_recipient, but with our own sender name in the From header.
 
@@ -467,7 +472,7 @@ def _mail_rejection(request, resource, package):
             'site_url': config.get('ckan.site_url'),
             'resource_name': resource_name,
             'package_name': package.title or package.name,
-            'admin_email_to': config.get('email_to', 'email_to_undefined')})
+            'admin_email_to': admin_email() or 'email_to_undefined'})
         subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(resource_name)
         try:
             send_mail(requester_name, requester_email, subject, body)

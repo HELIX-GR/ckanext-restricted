@@ -58,7 +58,7 @@ def restricted_user_create_and_notify(context, data_dict):
     # Send your email, check ckan.lib.mailer for params
     try:
         name = _('CKAN System Administrator')
-        email = config.get('email_to')
+        email = logic.admin_email()
         if not email:
             raise MailerException('Missing "email-to" in config')
 
@@ -322,7 +322,7 @@ def restricted_reject_request(context, data_dict):
                 'user_email': user['email'],
                 'resource_name': resource.get('name', resource['id']),
                 'package_name': data_dict.get('pkg_title'),
-                'admin_email_to': config.get('email_to', 'email_to_undefined')}
+                'admin_email_to': logic.admin_email() or 'email_to_undefined'}
             mail_body = tk.render(
                 'restricted/emails/restricted_user_rejected.txt', extra_vars)
             mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
@@ -346,7 +346,7 @@ def restricted_reject_request(context, data_dict):
                 'user_email': request_email,
                 'resource_name': resource.get('name', resource['id']),
                 'package_name': data_dict.get('pkg_title'),
-                'admin_email_to': config.get('email_to', 'email_to_undefined')}
+                'admin_email_to': logic.admin_email() or 'email_to_undefined'}
             mail_body = tk.render(
                 'restricted/emails/restricted_user_rejected.txt', extra_vars)
             mail_subject = _('Απόρριψη αιτήματος πρόσβασης στον πόρο {}').format(
@@ -391,7 +391,7 @@ def request_resource(context, data_dict):
         'package_name': data_dict.get('pkg_title'),
         'message': data_dict.get('message', ''),
         'dashboard_restricted': dashboard_restricted,
-        'admin_email_to': config.get('email_to', 'email_to_undefined')}
+        'admin_email_to': logic.admin_email() or 'email_to_undefined'}
 
     body = tk.render(
         'restricted/emails/restricted_access_unauth_request.txt', extra_vars)

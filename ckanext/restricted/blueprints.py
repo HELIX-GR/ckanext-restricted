@@ -204,7 +204,7 @@ def _send_request_mail(data, owner):
         site_url = config.get("ckan.site_url")
         # resources are edited from the dataset page (EDIT button opens the modal)
         resource_edit_link = tk.url_for("dataset.read", id=data.get("package_name"))
-        admin_email = config.get("email_to")
+        admin_email = restricted_logic.admin_email()
 
         # usernames on this instance are email addresses, use them if the profile email is empty
         owner_email = owner and (owner.email or ("@" in owner.name and owner.name) or None)

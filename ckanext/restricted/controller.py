@@ -78,7 +78,7 @@ class RestrictedController(toolkit.BaseController):
                 'package_name': data.get('pkg_dict').get('title', ''),
                 'message': data.get('message', ''),
                 'dashboard_restricted': dashboard_restricted,
-                'admin_email_to': config.get('email_to', 'email_to_undefined')}
+                'admin_email_to': ext_logic.admin_email() or 'email_to_undefined'}
 
             # authorized or not users
             if 'user_id' in data:
@@ -301,6 +301,6 @@ class RestrictedController(toolkit.BaseController):
         # get contact_email from custom datacite field
         contact_email = pkg_dict.get('datacite.contact_email')
         if not contact_email:
-            contact_email = config.get('email_to', 'email_to_undefined')
+            contact_email = ext_logic.admin_email() or 'email_to_undefined'
             contact_name = 'CKAN Admin'
         return {'contact_email': contact_email, 'contact_name': contact_name}
