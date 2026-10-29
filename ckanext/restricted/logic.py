@@ -435,6 +435,16 @@ def reject_request(request_id, acting_user):
     _mail_rejection(request, resource, package)
 
 
+def delete_request(request_id, acting_user):
+    """Remove a finished (revoked or rejected) request from the dashboard."""
+    request, resource, package = _get_manageable_request(request_id, acting_user)
+    if _request_status(request) not in (STATUS_REVOKED, STATUS_REJECTED):
+        raise tk.ValidationError({'request': [_('Only revoked or rejected requests can be deleted')]})
+
+    model.Session.delete(request)
+    model.Session.commit()
+
+
 def revoke_request(request_id, acting_user):
     """Withdraw an accepted request.
 

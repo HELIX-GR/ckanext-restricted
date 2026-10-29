@@ -54,6 +54,11 @@
                   {{ h.csrf_input() }}
                   <button type="submit" class="btn btn-sm btn-outline-danger">{{ _('Revoke access') }}</button>
                 </form>
+              {% elif req.status in ('revoked', 'rejected') %}
+                <form method="post" class="d-inline" action="{{ h.url_for('restricted.dashboard_handle_request', request_id=req.request_id, decision='delete') }}">
+                  {{ h.csrf_input() }}
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">{{ _('Delete') }}</button>
+                </form>
               {% endif %}
             </td>
           </tr>

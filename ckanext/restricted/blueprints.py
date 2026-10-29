@@ -313,7 +313,7 @@ def dashboard_requests():
 def dashboard_handle_request(request_id, decision):
     if not g.user:
         tk.abort(401, _("Not authorized to see this page"))
-    if decision not in ("accept", "reject", "revoke"):
+    if decision not in ("accept", "reject", "revoke", "delete"):
         tk.abort(404)
 
     try:
@@ -323,9 +323,12 @@ def dashboard_handle_request(request_id, decision):
         elif decision == "reject":
             restricted_logic.reject_request(request_id, g.userobj)
             h.flash_success(_("Το αίτημα απορρίφθηκε"))
-        else:
+        elif decision == "revoke":
             restricted_logic.revoke_request(request_id, g.userobj)
             h.flash_success(_("Η πρόσβαση ανακλήθηκε"))
+        else:
+            restricted_logic.delete_request(request_id, g.userobj)
+            h.flash_success(_("Το αίτημα διαγράφηκε"))
     except tk.ObjectNotFound:
         tk.abort(404, _("Request not found"))
     except tk.ValidationError:
