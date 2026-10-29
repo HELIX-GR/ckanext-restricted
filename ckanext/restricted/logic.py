@@ -12,6 +12,7 @@ import ckan.plugins.toolkit as toolkit
 import base64
 import datetime
 import os
+import time
 import json
 import ckan.model as model
 from sqlalchemy import or_
@@ -44,9 +45,18 @@ def send_mail(recipient_name, recipient_email, subject, body, body_html=None, he
 
     The public mail_recipient always uses ckan.site_title as sender name.
     """
-    mailer._mail_recipient(
-        recipient_name, recipient_email, email_site_title(), config.get('ckan.site_url'),
-        subject, body, body_html=body_html, headers=headers)
+    log.info('send_mail: sending "%s" to %s via %s (starttls=%s, user=%s)',
+             subject, recipient_email, config.get('smtp.server'),
+             config.get('smtp.starttls'), bool(config.get('smtp.user')))
+    started = time.monotonic()
+    try:
+        mailer._mail_recipient(
+            recipient_name, recipient_email, email_site_title(), config.get('ckan.site_url'),
+            subject, body, body_html=body_html, headers=headers)
+    except Exception as e:
+        log.warning('send_mail: failed for %s after %.1fs: %r', recipient_email, time.monotonic() - started, e)
+        raise
+    log.info('send_mail: done for %s in %.1fs', recipient_email, time.monotonic() - started)
 
 
 def restricted_get_username_from_context(context):
@@ -404,9 +414,11 @@ def accept_request(request_id, acting_user):
         request.download_id = base64.b32encode(os.urandom(30)).decode()
     request.accepted_at = datetime.datetime.utcnow()
     model.Session.commit()
+    log.info('accept_request: %s committed, reindexing %s', request_id, package.name)
 
     try:
         search.rebuild(package.id)
+        log.info('accept_request: reindexed %s', package.name)
     except Exception:
         log.exception('Failed to reindex dataset %s after accepting a request', package.name)
 
@@ -432,6 +444,7 @@ def reject_request(request_id, acting_user):
 
     request.rejected_at = datetime.datetime.utcnow()
     model.Session.commit()
+    log.info('reject_request: %s committed', request_id)
     _mail_rejection(request, resource, package)
 
 
@@ -462,10 +475,12 @@ def revoke_request(request_id, acting_user):
         resource.extras = dict(resource.extras, allowed_users=','.join(allowed))
     request.rejected_at = datetime.datetime.utcnow()
     model.Session.commit()
+    log.info('revoke_request: %s committed', request_id)
 
     if request.user_id:
         try:
             search.rebuild(package.id)
+            log.info('revoke_request: reindexed %s', package.name)
         except Exception:
             log.exception('Failed to reindex dataset %s after revoking a request', package.name)
     _mail_rejection(request, resource, package)
@@ -475,6 +490,8 @@ def _mail_rejection(request, resource, package):
     requester = model.User.get(request.user_id or '')
     requester_name = requester.display_name if requester else 'user'
     requester_email = requester.email if requester else request.request_email
+    if not requester_email:
+        log.warning('_mail_rejection: no email for requester of %s, nothing sent', request.request_id)
     if requester_email:
         resource_name = resource.name or resource.id
         body = tk.render('restricted/emails/restricted_user_rejected.txt', {
